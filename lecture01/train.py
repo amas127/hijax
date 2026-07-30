@@ -12,12 +12,12 @@ Learning objectives:
 """
 
 import time
-import tyro
-import matthewplotlib as mp
-from jaxtyping import Float, Array, Scalar
 
 import jax
 import jax.numpy as jnp
+import matthewplotlib as mp
+import tyro
+from jaxtyping import Array, Float, Scalar
 
 
 def main(

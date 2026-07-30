@@ -1,8 +1,8 @@
-import tyro
-import jaxtyping as jtp
 import imageio.v3 as iio
-import jax.numpy as jnp
 import jax
+import jax.numpy as jnp
+import jaxtyping as jtp
+import tyro
 
 
 def get_init_pos(

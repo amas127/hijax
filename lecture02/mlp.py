@@ -12,6 +12,7 @@ Learning objectives:
 
 import time
 import typing as tp
+from functools import partial
 
 import jax
 import jax.numpy as jnp
@@ -64,7 +65,7 @@ def main(
 
     key_model_init, key = jax.random.split(key, 2)
 
-    w = jax.random.normal(key_model_init, shape=(3,))
+    w = jax.random.truncated_normal(key_model_init, lower=-2.0, upper=+2.0, shape=(25,))
 
     print(vis_model(w, xs, step=1))
 
@@ -78,7 +79,7 @@ def main(
 
 
 def loss(
-    w: Float[Array, "3"],
+    w: Float[Array, "25"],
     x: Float[Array, "2"],
     y: Bool[Array, ""],
 ) -> Float[Array, ""]:
@@ -88,12 +89,19 @@ def loss(
 
 
 def forward_single_sample(
-    w: Float[Array, "3"],
+    w: Float[Array, "25"],
     x: Float[Array, "2"],
 ) -> Float[Array, ""]:
-    a = w[:2]
-    b = w[2]
-    return jnp.dot(x, a) + b
+    w1 = w[0 : 2 * 8].reshape(8, 2)
+    w2 = w[2 * 8 : 2 * 8 + 8 * 1].reshape(1, 8)
+    b2 = w[24].reshape(1)
+
+    x1 = w1 @ x
+    x2 = jnp.where(x1 > 0, x1, 0)
+    x3 = w2 @ x2
+    x4 = x3 + b2
+
+    return x4.reshape()
 
 
 forward = jax.vmap(
@@ -125,23 +133,47 @@ def vis_data(
     )
 
 
-def vis_model(
-    w: Float[Array, "3"],
+@jax.jit
+def soft_classify(
+    w: Float[Array, "25"],
     xs: Float[Array, "n 2"],
-    step: int,
-) -> mp.plot:
-    # compute predictions
-    ys_pred = jax.nn.sigmoid(forward(w, xs))
+) -> Float[Array, "n"]:
+    return jax.nn.sigmoid(forward(w, xs))
 
-    # compute decision boundary
-    x0 = jnp.linspace(-3, 3, 80)
-    y0 = -w[0] / w[1] * x0 - w[2] / w[1]
 
-    # plot
+@partial(jax.jit, static_argnames=("n_grid", "threshold"))
+def infer_decision_boundary(
+    w: Float[Array, "25"],
+    n_grid: int = 100,
+    threshold: float = 0.05,
+) -> tuple[Float[Array, "n"], Float[Array, "n"], Float[Array, "n"]]:
+    """Mlp generate boundary regions instead of a formulable line."""
+    xgrids, ygrids = jnp.meshgrid(
+        jnp.linspace(-3, +3, num=n_grid),
+        jnp.linspace(-3, +3, num=n_grid),
+    )
+    xgrids, ygrids = xgrids.ravel(), ygrids.ravel()
+    grid_pts = jnp.stack([xgrids, ygrids], axis=-1)
+    grid_preds = soft_classify(w, grid_pts)
+    boundary = jnp.abs(grid_preds - 0.5) < threshold
+    return xgrids, ygrids, boundary
+
+
+def vis_model(w, xs, step):
+    ys_pred = soft_classify(w, xs)
+    xgrids, ygrids, boundary = infer_decision_boundary(w)
+    bx = xgrids[boundary]
+    by = ygrids[boundary]
+
+    series: list[tuple[tp.Any, tp.Any, tp.Any]] = [
+        (xs[:, 0], xs[:, 1], mp.cyber(ys_pred)),
+    ]
+    if bx.size > 0:
+        series.append((bx, by, "white"))
+
     return mp.axes(
         mp.scatter(
-            (xs[:, 0], xs[:, 1], mp.cyber(ys_pred)),
-            (x0, y0, "white"),
+            *series,
             xrange=(-3, +3),
             yrange=(-3, +3),
             width=40,
