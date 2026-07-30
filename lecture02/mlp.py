@@ -68,6 +68,7 @@ def main(
     w = jax.random.truncated_normal(key_model_init, lower=-2.0, upper=+2.0, shape=(25,))
 
     print(vis_model(w, xs, step=1))
+    plot = None
 
     for t, (x, y) in enumerate(zip(xs, ys), 1):
         l, g = jax.value_and_grad(loss)(w, x, y)
@@ -76,6 +77,9 @@ def main(
         plot = vis_model(w, xs, step=t)
         print(f"{-plot}{plot}")
         time.sleep(0.02)
+
+    if plot is not None:
+        plot.saveimg("result.png")
 
 
 def loss(
