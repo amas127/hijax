@@ -26,13 +26,6 @@ from jaxtyping import Array, Bool, Float, PRNGKeyArray
 # # #
 # MODEL CODE
 
-# type Model = tuple[
-#     Float[Array, "h 2"],
-#     Float[Array, "h"],
-#     Float[Array, "1 h"],
-#     Float[Array, "1"],
-# ]
-
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass
@@ -183,8 +176,7 @@ def vis_model(
     return mp.axes(
         mp.dstack2(
             mp.function2(
-                lambda xs: jax.nn.sigmoid(forward(w, xs)),
-                # F=lambda xs: jax.nn.sigmoid(w.forward(xs)[:,0]),
+                lambda xs: jax.nn.sigmoid(forward(w, xs)),  # type: ignore[bad-assignment]
                 xrange=(-3, 3),
                 yrange=(-3, 3),
                 width=40,
